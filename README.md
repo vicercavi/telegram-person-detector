@@ -12,7 +12,8 @@ Este proyecto combina vision por computadora con un bot de Telegram para crear u
 2. **Deteccion inteligente de personas** — usa el modelo YOLOv8 nano para identificar personas con 80% de confianza, ignorando mascotas, sombras u objetos
 3. **Alertas instantaneas en tu celular** — recibe una foto en Telegram en el momento exacto en que alguien aparece
 4. **Control remoto desde cualquier lugar** — activa o desactiva la vigilancia desde tu celular con `/start` y `/stop`
-5. **Registro fotografico** — todas las detecciones se guardan como evidencia en tu disco
+5. **Modo inteligente** — detecta si estas usando la PC (mouse/teclado) y solo envia notificaciones cuando no estas presente
+6. **Registro fotografico organizado** — las capturas se guardan automaticamente en subcarpetas por dia y hora (`capturas/2026-03-16/14/`)
 
 ## Estructura del Proyecto
 
@@ -21,7 +22,13 @@ deteccion/
 ├── bot_telegram.py                # Script principal del bot
 ├── dependencias_yolo_deteccion.py # Script para instalar dependencias
 ├── yolov8n.pt                     # Modelo YOLOv8 nano pre-entrenado
-├── capturas/                      # Carpeta donde se guardan las imagenes capturadas
+├── .env                           # Tus credenciales (no se sube al repo)
+├── .env.example                   # Plantilla de configuracion
+├── capturas/                      # Capturas organizadas por dia/hora
+│   └── 2026-03-16/
+│       ├── 09/                    # Capturas de las 9:00 - 9:59
+│       ├── 14/                    # Capturas de las 14:00 - 14:59
+│       └── ...
 ├── LEER.txt                       # Instrucciones originales
 └── README.md                      # Este archivo
 ```
@@ -88,6 +95,7 @@ python bot_telegram.py --cam 0 --save capturas
 |-----------|-------------|---------|
 | `--cam`   | ID de la camara (0 = webcam principal) | `0` |
 | `--save`  | Directorio donde guardar las capturas | `capturas` |
+| `--idle`  | Segundos sin actividad para considerar que no estas en la PC | `60` |
 
 ### Comandos de Telegram
 
@@ -113,8 +121,10 @@ python bot_telegram.py --cam 0 --save C:\Users\tu_usuario\Desktop\capturas_perso
 1. El bot se conecta a Telegram y espera comandos
 2. Al recibir `/start`, abre la camara indicada
 3. Lee frames continuamente y los analiza con YOLOv8
-4. Si detecta una persona (confianza >= 80%), guarda la imagen como `persona_detectada_N.jpg`
-5. Envia la imagen al usuario via Telegram
+4. Si detecta una persona (confianza >= 80%), guarda la imagen en `capturas/YYYY-MM-DD/HH/`
+5. Verifica si el usuario esta activo en la PC (mouse/teclado)
+   - **Si estas ausente** (sin actividad por mas de `--idle` segundos): envia la foto por Telegram
+   - **Si estas presente**: guarda la foto pero NO envia notificacion
 6. Continua hasta recibir `/stop` o cerrar el programa
 
 ## Solucion de Problemas

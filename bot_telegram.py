@@ -2,6 +2,8 @@ import cv2
 import os
 import argparse
 import asyncio
+import ctypes
+from datetime import datetime
 from dotenv import load_dotenv
 from ultralytics import YOLO
 from telegram import Update, Bot
@@ -13,11 +15,12 @@ load_dotenv()
 parser = argparse.ArgumentParser(description="Detección con YOLO y Telegram Bot")
 parser.add_argument("--cam", type=int, default=0, help="ID de la cámara (default: 0)")
 parser.add_argument("--save", type=str, default="capturas", help="Directorio donde guardar capturas")
+parser.add_argument("--idle", type=int, default=60, help="Segundos de inactividad para considerar que no estas en la PC (default: 60)")
 args = parser.parse_args()
 
 CAMERA_ID = args.cam
 SAVE_PATH = args.save
-os.makedirs(SAVE_PATH, exist_ok=True)
+IDLE_THRESHOLD = args.idle
 
 # --- Configuración del bot ---
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -42,6 +45,30 @@ bot = Bot(token=TOKEN)
 running = False
 detection_task = None
 frame_count = 0
+
+# --- Deteccion de inactividad del usuario (Windows) ---
+def get_idle_seconds():
+    """Retorna los segundos desde la ultima interaccion con mouse/teclado."""
+    class LASTINPUTINFO(ctypes.Structure):
+        _fields_ = [("cbSize", ctypes.c_uint), ("dwTime", ctypes.c_uint)]
+
+    lii = LASTINPUTINFO()
+    lii.cbSize = ctypes.sizeof(LASTINPUTINFO)
+    ctypes.windll.user32.GetLastInputInfo(ctypes.byref(lii))
+    millis = ctypes.windll.kernel32.GetTickCount() - lii.dwTime
+    return millis / 1000.0
+
+def user_is_away():
+    """True si el usuario lleva mas tiempo inactivo que el umbral configurado."""
+    return get_idle_seconds() > IDLE_THRESHOLD
+
+# --- Ruta de guardado organizada por dia/hora ---
+def get_save_path():
+    """Retorna la ruta de guardado: SAVE_PATH/YYYY-MM-DD/HH/"""
+    now = datetime.now()
+    path = os.path.join(SAVE_PATH, now.strftime("%Y-%m-%d"), now.strftime("%H"))
+    os.makedirs(path, exist_ok=True)
+    return path
 
 # --- Enviar imagen por Telegram ---
 async def send_photo(photo_path):
@@ -95,10 +122,16 @@ async def detection_loop():
         )
 
         if detected:
-            img_name = os.path.join(SAVE_PATH, f"persona_detectada_{frame_count}.jpg")
+            save_dir = get_save_path()
+            timestamp = datetime.now().strftime("%H%M%S")
+            img_name = os.path.join(save_dir, f"persona_{timestamp}_{frame_count}.jpg")
             cv2.imwrite(img_name, frame)
             print(f"📸 Imagen guardada: {img_name}")
-            await send_photo(img_name)
+
+            if user_is_away():
+                await send_photo(img_name)
+            else:
+                print(f"🖥️ Usuario activo en la PC — notificacion omitida")
 
         frame_count += 1
         await asyncio.sleep(0.1)
