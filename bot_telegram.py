@@ -98,6 +98,33 @@ async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("⏹️ No estaba ejecutándose.")
 
+# --- Comando /foto ---
+async def foto_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Captura una foto instantanea de la camara y la envia."""
+    await update.message.reply_text("📷 Capturando foto...")
+
+    cap = cv2.VideoCapture(CAMERA_ID, cv2.CAP_DSHOW)
+    if not cap.isOpened():
+        await update.message.reply_text("❌ No se pudo abrir la cámara.")
+        return
+
+    ret, frame = cap.read()
+    cap.release()
+
+    if not ret:
+        await update.message.reply_text("❌ No se pudo capturar la imagen.")
+        return
+
+    save_dir = get_save_path()
+    timestamp = datetime.now().strftime("%H%M%S")
+    img_name = os.path.join(save_dir, f"foto_manual_{timestamp}.jpg")
+    cv2.imwrite(img_name, frame)
+
+    user_id = update.effective_user.id
+    with open(img_name, "rb") as photo_file:
+        await context.bot.send_photo(chat_id=user_id, photo=photo_file)
+    print(f"📷 Foto manual enviada a {user_id}: {img_name}")
+
 async def detection_loop():
     global running, frame_count
 
@@ -145,8 +172,9 @@ def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("stop", stop_command))
+    app.add_handler(CommandHandler("foto", foto_command))
 
-    print("🤖 Bot escuchando comandos /start y /stop...")
+    print("🤖 Bot escuchando comandos /start, /stop y /foto...")
     app.run_polling()
 
 if __name__ == "__main__":

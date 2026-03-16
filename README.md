@@ -45,8 +45,8 @@ deteccion/
 ### 1. Crear entorno virtual con Anaconda
 
 ```bash
-conda create -n deteccion python==3.10
-conda activate deteccion
+conda create -n deteccion_personas python==3.10
+conda activate deteccion_personas
 ```
 
 ### 2. Instalar dependencias
@@ -99,12 +99,13 @@ python bot_telegram.py --cam 0 --save capturas
 
 ### Comandos de Telegram
 
-Una vez que aparezca el mensaje `Bot escuchando comandos /start y /stop...`, abre el chat con tu bot en Telegram y usa:
+Una vez que aparezca el mensaje `Bot escuchando comandos /start, /stop y /foto...`, abre el chat con tu bot en Telegram y usa:
 
 | Comando  | Accion |
 |----------|--------|
 | `/start` | Inicia la deteccion y el envio de fotos |
 | `/stop`  | Detiene la deteccion |
+| `/foto`  | Captura y envia una foto al instante (sin necesidad de que `/start` este activo) |
 
 ### Ejemplo completo
 
