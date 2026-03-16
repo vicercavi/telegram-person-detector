@@ -1,0 +1,17 @@
+# Editor & AI tools
+.vscode/
+.claude/
+
+# Variables de entorno (contiene tokens secretos)
+.env
+
+# Capturas
+capturas/
+capturas_old/
+
+# Python
+__pycache__/
+*.pyc
+
+# Modelo (archivo grande, se descarga automaticamente)
+*.pt

@@ -1,0 +1,26 @@
+CREAR ENTORNO EN ANACONDA
+conda create -n "entorno" python==3.10
+
+INSTALAR DEPENDENCIAS:
+ "ultralytics", 
+ "opencv-python",       
+ "python-telegram-bot==20.7"
+
+EJECUTAR "dependencias_yolo_deteccion.py" EN SU ENTORNO VIRTUAL YA CREADO Y ACTIVO:
+	(entorno) python tu\path\dependencias_yolo_deteccion.py
+
+	ejemplo:
+	(entorno) python C:\Users\tello\OneDrive\Desktop\dependencias_yolo_deteccion.py
+
+PROBAR EL BOT, EJECUTA:
+	(entorno) python tu\path\bot_telegram.py --cam [numero de la camara] --save [ubicacion de donde guardar las capturas]
+	
+	*ejemplo, (0:camara laptop):
+	(entorno) python C:\Users\tello\OneDrive\Desktop\bot_telegram.py --cam 0 --save C:\Users\tello\OneDrive\Desktop\capturas_personas\
+
+
+	*ESPERAR A QUE APAREZCA 🤖 Bot escuchando comandos /start y /stop...*
+	
+	en el chat del bot:
+		/start: iniciar el envió de las fotos 
+		/stop: detener los envios
