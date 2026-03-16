@@ -1,15 +1,18 @@
-# Bot de Deteccion de Personas con YOLOv8 y Telegram
+# Convierte tu PC en una Camara de Seguridad Inteligente
 
-Bot que utiliza la camara de tu equipo para detectar personas en tiempo real mediante el modelo YOLOv8. Cuando detecta una persona, captura una imagen y la envia automaticamente a traves de Telegram.
+Transforma cualquier computadora con webcam en un sistema de vigilancia inteligente que monitorea lo que ocurre cuando no estas. Usa inteligencia artificial (YOLOv8) para detectar personas en tiempo real y te avisa al instante por Telegram con una foto de lo que detecto.
+
+Ideal para vigilar tu hogar, oficina, habitacion o cualquier espacio mientras estas fuera.
 
 ## Descripcion
 
-Este proyecto combina vision por computadora con un bot de Telegram para crear un sistema de vigilancia ligero:
+Este proyecto combina vision por computadora con un bot de Telegram para crear un sistema de seguridad casero sin necesidad de comprar camaras especializadas — solo necesitas tu PC y una webcam:
 
-1. **Captura de video** en tiempo real desde una camara (webcam, camara USB, etc.)
-2. **Deteccion de personas** usando el modelo YOLOv8 nano (`yolov8n.pt`) con un umbral de confianza del 80%
-3. **Notificacion instantanea** via Telegram: envia la foto capturada al usuario configurado
-4. **Control remoto** del sistema desde el chat de Telegram con comandos `/start` y `/stop`
+1. **Tu PC se convierte en camara de seguridad** — usa tu webcam, camara USB o cualquier camara conectada
+2. **Deteccion inteligente de personas** — usa el modelo YOLOv8 nano para identificar personas con 80% de confianza, ignorando mascotas, sombras u objetos
+3. **Alertas instantaneas en tu celular** — recibe una foto en Telegram en el momento exacto en que alguien aparece
+4. **Control remoto desde cualquier lugar** — activa o desactiva la vigilancia desde tu celular con `/start` y `/stop`
+5. **Registro fotografico** — todas las detecciones se guardan como evidencia en tu disco
 
 ## Estructura del Proyecto
 
