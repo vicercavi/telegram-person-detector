@@ -6,8 +6,8 @@ import ctypes
 from datetime import datetime
 from dotenv import load_dotenv
 from ultralytics import YOLO
-from telegram import Update, Bot
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram import Update, Bot, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
 load_dotenv()
 
@@ -80,39 +80,155 @@ async def send_photo(photo_path):
         except Exception as e:
             print(f"❌ Error enviando a {user_id}: {e}")
 
-async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global running, detection_task
-    if not running:
-        running = True
-        await update.message.reply_text("▶️ Detección iniciada.")
-        detection_task = asyncio.create_task(detection_loop())
+# --- Teclados inline ---
+def main_menu_keyboard():
+    """Menu principal con todas las opciones."""
+    if running:
+        buttons = [
+            [InlineKeyboardButton("📷 Tomar foto", callback_data="foto")],
+            [InlineKeyboardButton("🛑 Detener vigilancia", callback_data="stop")],
+            [InlineKeyboardButton("ℹ️ Estado", callback_data="estado")],
+        ]
     else:
-        await update.message.reply_text("⚠️ Ya está en ejecución.")
+        buttons = [
+            [InlineKeyboardButton("▶️ Activar vigilancia", callback_data="start")],
+            [InlineKeyboardButton("📷 Tomar foto", callback_data="foto")],
+            [InlineKeyboardButton("ℹ️ Estado", callback_data="estado")],
+        ]
+    return InlineKeyboardMarkup(buttons)
 
-# --- Comando /stop ---
+def ask_start_keyboard():
+    """Pregunta si desea activar la deteccion."""
+    buttons = [
+        [InlineKeyboardButton("✅ Si, activar", callback_data="start"),
+         InlineKeyboardButton("❌ No", callback_data="menu")],
+    ]
+    return InlineKeyboardMarkup(buttons)
+
+# --- Comando /start (menu de bienvenida) ---
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    welcome = (
+        "🤖 *Camara de Seguridad Inteligente*\n\n"
+        "Controla tu sistema de vigilancia desde aqui.\n"
+        "Selecciona una opcion:"
+    )
+    await update.message.reply_text(welcome, parse_mode="Markdown", reply_markup=main_menu_keyboard())
+
+# --- Comando /foto directo ---
+async def foto_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await _take_and_send_photo(update.effective_user.id, context)
+    if not running:
+        await context.bot.send_message(
+            chat_id=update.effective_user.id,
+            text="🔔 La vigilancia automatica esta *desactivada*.\n¿Deseas activar la deteccion de personas?",
+            parse_mode="Markdown",
+            reply_markup=ask_start_keyboard(),
+        )
+
+# --- Comando /stop directo ---
 async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global running
     if running:
         running = False
-        await update.message.reply_text("🛑 Detección detenida.")
+        await update.message.reply_text(
+            "🛑 Vigilancia detenida.",
+            reply_markup=main_menu_keyboard(),
+        )
     else:
-        await update.message.reply_text("⏹️ No estaba ejecutándose.")
+        await update.message.reply_text(
+            "⏹️ No estaba activa.",
+            reply_markup=main_menu_keyboard(),
+        )
 
-# --- Comando /foto ---
-async def foto_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Captura una foto instantanea de la camara y la envia."""
-    await update.message.reply_text("📷 Capturando foto...")
+# --- Manejador de botones ---
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global running, detection_task
+    query = update.callback_query
+    await query.answer()
 
+    if query.data == "start":
+        if not running:
+            running = True
+            detection_task = asyncio.create_task(detection_loop())
+            await query.edit_message_text(
+                "▶️ *Vigilancia activada*\n\nTe avisare cuando detecte a alguien.",
+                parse_mode="Markdown",
+                reply_markup=main_menu_keyboard(),
+            )
+        else:
+            await query.edit_message_text(
+                "⚠️ La vigilancia ya esta activa.",
+                reply_markup=main_menu_keyboard(),
+            )
+
+    elif query.data == "stop":
+        if running:
+            running = False
+            buttons = [
+                [InlineKeyboardButton("▶️ Reactivar", callback_data="start"),
+                 InlineKeyboardButton("📷 Tomar foto", callback_data="foto")],
+                [InlineKeyboardButton("🏠 Menu", callback_data="menu")],
+            ]
+            await query.edit_message_text(
+                "🛑 *Vigilancia detenida*\n\n¿Que deseas hacer?",
+                parse_mode="Markdown",
+                reply_markup=InlineKeyboardMarkup(buttons),
+            )
+        else:
+            await query.edit_message_text(
+                "⏹️ No estaba activa.",
+                reply_markup=main_menu_keyboard(),
+            )
+
+    elif query.data == "foto":
+        await query.edit_message_text("📷 Capturando foto...")
+        await _take_and_send_photo(query.from_user.id, context)
+        if not running:
+            await context.bot.send_message(
+                chat_id=query.from_user.id,
+                text="🔔 La vigilancia automatica esta *desactivada*.\n¿Deseas activar la deteccion de personas?",
+                parse_mode="Markdown",
+                reply_markup=ask_start_keyboard(),
+            )
+        else:
+            await context.bot.send_message(
+                chat_id=query.from_user.id,
+                text="📸 Foto enviada. La vigilancia sigue activa.",
+                reply_markup=main_menu_keyboard(),
+            )
+
+    elif query.data == "estado":
+        idle = get_idle_seconds()
+        status = "🟢 *Activa*" if running else "🔴 *Inactiva*"
+        presence = "🖥️ En la PC" if idle < IDLE_THRESHOLD else f"💤 Ausente ({int(idle)}s sin actividad)"
+        text = (
+            f"📊 *Estado del sistema*\n\n"
+            f"Vigilancia: {status}\n"
+            f"Usuario: {presence}\n"
+            f"Capturas totales: {frame_count}\n"
+            f"Camara: {CAMERA_ID}"
+        )
+        await query.edit_message_text(text, parse_mode="Markdown", reply_markup=main_menu_keyboard())
+
+    elif query.data == "menu":
+        await query.edit_message_text(
+            "🤖 *Camara de Seguridad Inteligente*\n\nSelecciona una opcion:",
+            parse_mode="Markdown",
+            reply_markup=main_menu_keyboard(),
+        )
+
+# --- Capturar y enviar foto ---
+async def _take_and_send_photo(user_id, context):
     cap = cv2.VideoCapture(CAMERA_ID, cv2.CAP_DSHOW)
     if not cap.isOpened():
-        await update.message.reply_text("❌ No se pudo abrir la cámara.")
+        await context.bot.send_message(chat_id=user_id, text="❌ No se pudo abrir la cámara.")
         return
 
     ret, frame = cap.read()
     cap.release()
 
     if not ret:
-        await update.message.reply_text("❌ No se pudo capturar la imagen.")
+        await context.bot.send_message(chat_id=user_id, text="❌ No se pudo capturar la imagen.")
         return
 
     save_dir = get_save_path()
@@ -120,7 +236,6 @@ async def foto_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     img_name = os.path.join(save_dir, f"foto_manual_{timestamp}.jpg")
     cv2.imwrite(img_name, frame)
 
-    user_id = update.effective_user.id
     with open(img_name, "rb") as photo_file:
         await context.bot.send_photo(chat_id=user_id, photo=photo_file)
     print(f"📷 Foto manual enviada a {user_id}: {img_name}")
@@ -173,8 +288,9 @@ def main():
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("stop", stop_command))
     app.add_handler(CommandHandler("foto", foto_command))
+    app.add_handler(CallbackQueryHandler(button_handler))
 
-    print("🤖 Bot escuchando comandos /start, /stop y /foto...")
+    print("🤖 Bot listo. Envia /start en Telegram para ver el menu.")
     app.run_polling()
 
 if __name__ == "__main__":
